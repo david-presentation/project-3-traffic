@@ -115,9 +115,6 @@ highway_select = st.selectbox(
 
 st.session_state['highway_filter'] = highway_select
 
-# Reference for spacing: https://discuss.streamlit.io/t/create-empty-space-to-separate-portions-of-the-app/8689/2
-st.markdown('##')
-
 # Reference https://docs.streamlit.io/develop/api-reference/widgets/st.toggle
 # event_set = st.toggle("Apply Event Filtering")
 
