@@ -17,7 +17,7 @@ import numpy as np
 # Reference use for implementation: https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state
 
 if 'node_data' not in st.session_state:
-    date_range = pd.read_csv('../data/streamlit_nodes.csv', low_memory=False)
+    date_range = pd.read_csv('./data/streamlit_nodes.csv', low_memory=False)
     st.session_state['node_data'] = date_range
 
 if 'date_year' not in st.session_state:
@@ -213,7 +213,7 @@ colour_mapping = {
 
 if st.button('Reload Data'):
     del st.session_state['node_data']
-    date_range = pd.read_csv('../data/streamlit_nodes.csv', low_memory=False)
+    date_range = pd.read_csv('./data/streamlit_nodes.csv', low_memory=False)
     st.session_state['node_data'] = date_range
 
 
