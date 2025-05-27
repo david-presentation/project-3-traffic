@@ -31,7 +31,6 @@ def change_date():
     st.session_state['date_year'] = start_time.year
     st.session_state['date_month'] = start_time.month
 
-
 if 'filter_status' not in st.session_state:
     st.session_state['filter_status'] = True
 
@@ -65,6 +64,10 @@ def change_light():
 if 'highway_filter' not in st.session_state:
     st.session_state['highway_filter'] = ''
 
+
+# Density colours
+if 'density_colour' not in st.session_state:
+    st.session_state['density_colour'] = False
 
 # Row references:
 # https://stackoverflow.com/questions/69492406/streamlit-how-to-display-buttons-in-a-single-line
@@ -115,17 +118,6 @@ highway_select = st.selectbox(
 
 st.session_state['highway_filter'] = highway_select
 
-# Reference https://docs.streamlit.io/develop/api-reference/widgets/st.toggle
-# event_set = st.toggle("Apply Event Filtering")
-
-# if event_set:
-#     st.session_state.event_filter = False
-# else:
-#     st.session_state.event_filter = True
-
-# if event_set:
-#     pass
-
 events_data = { 
     "New Years Day" : { "day": 1, "month": 1, "year": 2024 },
     "Day After New Years Day" : { "day": 2, "month": 1, "year": 2024},
@@ -146,45 +138,16 @@ events_data = {
     "FIFA Womens World Cup" : { "day": 20, "month": 6, "year": 2023}
 }
 
-# Reference https://docs.streamlit.io/develop/api-reference/widgets/st.selectbox
-# highway_select = st.selectbox(
-#     "Filtered event",
-#     [
-#         'New Years Day',
-#         'Day After New Years Day',
-#         'Waitangi',
-#         'Good Friday',
-#         'Anzac Day',
-#         'Kings Official Birthday',
-#         'Matariki',
-#         'Labour Day',
-#         'Christmas Day',
-#         'Boxing Day',
-#         'Cyclone Gabrielle',
-#         'Auckland Floods',
-#         'Covid Lockdown',
-#         'New Wellington Highway',
-#         'Fieldays',
-#         'FIFA Womens World Cup'
-#     ],
-#     index=None,
-#     placeholder="Select an event to filter",
-#     accept_new_options=False,
-#     disabled=st.session_state.event_filter
-# )
-
 event_col1, event_col2, event_col3 = st.columns([1, 1, 3])
 
-# with event_col1:
-#     if st.button('Previous Day', disabled=st.session_state.event_filter):
-#         pass
 
-# with event_col2:
-#     if st.button('Next Day', disabled=st.session_state.event_filter):
-#         pass
+# Reference https://docs.streamlit.io/develop/api-reference/widgets/st.toggle
+density_colour = st.toggle("Colours based on population density")
 
-# st.markdown('##')
-
+if density_colour:
+    st.session_state.density_colour = True
+else:
+    st.session_state.density_colour = False
 
 start_time = st.slider(
     "Traffic volume date",
@@ -229,6 +192,12 @@ colour_mapping = {
     'major': 'red'
 }
 
+if st.button('Reload Data'):
+    del st.session_state['node_data']
+    date_range = pd.read_csv('./data/streamlit_nodes.csv', low_memory=False)
+    st.session_state['node_data'] = date_range
+
+
 connections_map = folium.Map(location=(-41.15139566937802, 174.90173505272722), zoom_start=6.5, tiles='cartodb positron')
 
 date_range = st.session_state.node_data
@@ -257,13 +226,23 @@ min_max_scaler = MinMaxScaler()
 min_max_scaler.fit(display_range[['trafficCount']])
 display_range['trafficCount'] = min_max_scaler.transform(display_range[['trafficCount']])
 
+# Used as a reference for generating colours
+# https://python-visualization.github.io/folium/latest/advanced_guide/colormaps.html
+import branca.colormap as cm
+# linear_colour = cm.linear.YlOrRd_04.scale(0.00, 0.1)
+linear_colour = cm.LinearColormap(['white', 'orange', 'red'], index=[0, 0.02, 0.5])
 
 for i in range(0, display_range.shape[0]):
     node_index_value = display_range.index.values[i]
 
-    # Map the current nodes 'urban' value to a usable colour
-    colour = display_range.loc[node_index_value, 'urban']
-    colour = colour_mapping[colour]
+    if (st.session_state.density_colour):
+        # Map the current nodes 'urban' value to a usable colour
+        colour = display_range.loc[node_index_value, 'urban']
+        colour = colour_mapping[colour]
+    else:
+        # Used as a reference for applying colours
+        # https://python-visualization.github.io/folium/latest/advanced_guide/colormaps.html
+        colour = linear_colour(display_range.loc[node_index_value, 'trafficCount'])
 
     # The geometry data points have been changed to strings, most likely due to exporting as a csv file.
     # To I'll have to split them up manually and cast them to float data types.
@@ -277,7 +256,7 @@ for i in range(0, display_range.shape[0]):
     # We could use the traffic volume associated with each site in order to influence the size of the circles drawn on the map
     weight_value = display_range.loc[node_index_value, 'trafficCount'] * 10
     
-    circle = folium.Circle(location=[y_coord, x_coord], weight=10, color=colour, radius=weight_value, fill_color=colour, opacity=0.1)
+    circle = folium.Circle(location=[y_coord, x_coord], weight=8, color=colour, radius=weight_value, fill_color=colour, opacity=0.2)
     highway_features.add_child(circle)
     
     # Draw the connections between nodes
@@ -290,21 +269,12 @@ for i in range(0, display_range.shape[0]):
         next_y_coord = float(display_range.loc[next_index, 'geometry'].split(' ')[2][:-1])
 
         weight_value = display_range.loc[node_index_value, 'trafficCount'] * 10
-
-        line = folium.PolyLine([(y_coord, x_coord), (next_y_coord, next_x_coord)], weight=weight_value, color=colour,)
-        # line.add_to(connections_map)
+        
+        if (st.session_state.density_colour):
+            line = folium.PolyLine([(y_coord, x_coord), (next_y_coord, next_x_coord)], weight=weight_value, color=colour,)
+        else:
+            colour = linear_colour(display_range.loc[next_index, 'trafficCount'])
+            line = folium.PolyLine([(y_coord, x_coord), (next_y_coord, next_x_coord)], weight=weight_value * 2, color=colour,)
         highway_features.add_child(line)
 
 st_folium(connections_map, feature_group_to_add=highway_features, height=900, width=800)
-
-# It might actually be better to use a timeslider for this
-# https://python-visualization.github.io/folium/latest/user_guide/plugins/timeline.html
-
-
-if st.button('Reload Data'):
-    del st.session_state['node_data']
-    date_range = pd.read_csv('./data/streamlit_nodes.csv', low_memory=False)
-    st.session_state['node_data'] = date_range
-
-
-
