@@ -17,7 +17,7 @@ import numpy as np
 # Reference use for implementation: https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state
 
 if 'node_data' not in st.session_state:
-    date_range = pd.read_csv('./data/streamlit_nodes.csv', low_memory=False)
+    date_range = pd.read_csv('../data/streamlit_nodes.csv', low_memory=False)
     st.session_state['node_data'] = date_range
 
 if 'date_year' not in st.session_state:
@@ -140,9 +140,28 @@ events_data = {
 
 event_col1, event_col2, event_col3 = st.columns([1, 1, 3])
 
+toggle_col1, toggle_col2, toggle_col3, toggle_col4, toggle_col5, toggle_col6 = st.columns([4, 1, 1, 1, 1, 1])
 
-# Reference https://docs.streamlit.io/develop/api-reference/widgets/st.toggle
-density_colour = st.toggle("Colours based on population density")
+with toggle_col1:
+    # Reference https://docs.streamlit.io/develop/api-reference/widgets/st.toggle
+    density_colour = st.toggle("Colours based on population density")
+
+with toggle_col2:
+    # Reference to badges found here: https://docs.streamlit.io/develop/api-reference/text/st.badge
+    st.badge("Major", color='red')
+
+with toggle_col3:
+    st.badge("Large", color='orange')
+
+with toggle_col4:
+    st.badge("Medium", color='violet')
+
+with toggle_col5:
+    st.badge("Small", color='blue')
+
+with toggle_col6:
+    st.badge("Rural", color='green')
+
 
 if density_colour:
     st.session_state.density_colour = True
@@ -187,14 +206,14 @@ for highway in st.session_state['highways']:
 colour_mapping = {
     'rural': 'green',
     'small': 'blue',
-    'med': 'pink',
+    'med': 'violet',
     'large': 'orange',
     'major': 'red'
 }
 
 if st.button('Reload Data'):
     del st.session_state['node_data']
-    date_range = pd.read_csv('./data/streamlit_nodes.csv', low_memory=False)
+    date_range = pd.read_csv('../data/streamlit_nodes.csv', low_memory=False)
     st.session_state['node_data'] = date_range
 
 
@@ -222,9 +241,11 @@ if (st.session_state['highway_filter'] != '' and st.session_state.filter_status 
 # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html 
 from sklearn.preprocessing import MinMaxScaler
 
-min_max_scaler = MinMaxScaler()
-min_max_scaler.fit(display_range[['trafficCount']])
-display_range['trafficCount'] = min_max_scaler.transform(display_range[['trafficCount']])
+
+if (not display_range[['trafficCount']].shape[0] < 1):
+    min_max_scaler = MinMaxScaler()
+    min_max_scaler.fit(display_range[['trafficCount']])
+    display_range['trafficCount'] = min_max_scaler.transform(display_range[['trafficCount']])
 
 # Used as a reference for generating colours
 # https://python-visualization.github.io/folium/latest/advanced_guide/colormaps.html
